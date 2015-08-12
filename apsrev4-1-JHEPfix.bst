@@ -2617,6 +2617,8 @@ FUNCTION {article}
       journal missing$ 'skip$
       {
           journal "J. High Energy Phys." =
+          journal "J. Cosmol. Astropart. Phys." =
+          or
           { 
               journal
               "journal" bibinfo.warn
