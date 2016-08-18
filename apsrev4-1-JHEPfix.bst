@@ -1,3 +1,17 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%% 'apsrev4-1-JHEPfix-autoEtAl.bst'
+%%
+%% 150812 MDP - Downloaded apsrev401-JHEPfix.bst from 
+%%              https://github.com/jsw-fnal/PhysRevBST
+%%              Comments starting at "This is file ..." from original file
+%% 160816 MDP - Turned flag control.title to true to print titles for articles
+%% 160817 MDP - Added functionality to automatically replace long authors lists
+%%              with et al.  Feature controled by flag control.author.etal
+%%              Number of authors at which to truncate is set by integeter
+%%              control.author.etal.thresh, which by deafult is set at 20
+%%
+%%
 %%
 %% This is file `apsrev4-1-JHEPfix.bst',
 %% generated with the docstrip utility.
@@ -201,7 +215,7 @@ FUNCTION {diagn.cmntlog}
 
 INTEGERS { control.key control.author control.editor control.title control.pages control.eprint control.year }
 
-INTEGERS { control.author.jnrlst control.author.dotless control.author.nospace control.author.initials control.author.nocomma control.author.first control.author.reversed }
+INTEGERS { control.author.jnrlst control.author.dotless control.author.nospace control.author.initials control.author.nocomma control.author.first control.author.reversed control.author.etal control.author.etal.thresh }
 
 FUNCTION { control.init }
 {
@@ -226,10 +240,14 @@ FUNCTION { control.init }
   #0
   'control.author.reversed :=
   #1
+  'control.author.etal   :=
+  #20
+  'control.author.etal.thresh   :=
+  #1
   'control.editor :=
-  #-1
+  #1
   'control.title  :=
-  #0
+  #1
   'control.pages  :=
   #0
   'control.eprint :=
@@ -1538,15 +1556,38 @@ FUNCTION {names.punctuate}
   " " *
 }
 
+INTEGERS { etal }
+
 FUNCTION {format.names}
 { 'bibinfo :=
-  duplicate$ empty$ { pop$ "" } {
+%    "entry" top$
+  duplicate$ empty$ { pop$ "" }
+  {
     duplicate$ num.names$
-    duplicate$ 'numnames :=
-    'namesleft :=
+    'numnames :=
     's :=
     #1 'nameptr :=
+    % decide whether to determine etal usage
+    control.author.etal
+      { 
+        % auto replace with et al if greater than threshold author number
+        % change commented line to also always automatically 
+        % replace if collaboration field defined
+%        collaboration missing$ not numnames control.author.etal.thresh > or
+        numnames control.author.etal.thresh > 
+        % see if last lastname is already "others" and if numnames>1
+        s numnames "{ll}" format.name$ "others" = numnames #1 > and
+        or 'etal :=
+      }
+      { #0 'etal := }
+    if$
+    % if we are using etal or not define namesleft
+    etal
+      { #1 #1 + 'namesleft := }     % namesleft=2 regardless of true names left
+      { numnames 'namesleft := }    % true number of names left
+    if$
     ""
+    % loop over authors until there are none left
       { namesleft #0 > }
       {
       format.names.morfont
@@ -1565,13 +1606,17 @@ FUNCTION {format.names}
                 names.punctuate
                 t *
               } {
-                s nameptr "{ll}" format.name$ duplicate$ "others" =
-                  { 't := }
-                  { pop$ }
-                if$
-                numnames #2 >
-                  'names.punctuate
-                  { word.space * }
+                etal
+                  {
+                    "others" 't :=
+                    word.space *
+                  }
+                  {
+                    numnames #2 >
+                      'names.punctuate
+                      { word.space * }
+                    if$
+                  }
                 if$
                 t "others" =
                   {
@@ -1764,6 +1809,28 @@ FUNCTION {format.authors}
   if$
   "author" 'bibfield :=
 }
+
+%FUNCTION {format.authors}
+%{ author empty$
+%    { "" }
+%    %'skip$
+%    {
+%        collaboration missing$
+%        {
+%            author "author" format.names
+%        }
+%        {
+%            pop$
+%            author "author" format.names
+%            collaboration "collaboration" bibinfo.check
+%            " (" swap$ * ")" *
+%        }
+%        if$
+%      %*
+%    }
+%    if$
+% "author" 'bibfield :=
+%}
 
 FUNCTION {get.bbl.editor}
 { editor num.names$ #1 > 'bbl.editors 'bbl.editor if$
@@ -3444,7 +3511,7 @@ FUNCTION {warn.bib}
 FUNCTION {init.bib}
 {
   warn.bib
-  "\makeatletter" write$ newline$
+  "\makeatletter"			   write$ newline$
   "\providecommand \@ifxundefined [1]{%"   write$ newline$
   " \@ifx{#1\undefined}"                   write$ newline$
   "}%"                                     write$ newline$
